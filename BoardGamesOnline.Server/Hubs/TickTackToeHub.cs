@@ -57,7 +57,13 @@ namespace BoardGamesOnline.Server.Hubs
                 return;
             }
 
-            if(player.Game.Winner != "progress")
+            await Clients.Caller.SendAsync("Notify", "Ok");
+            player.SwitchRight();
+            var opponent = info.Get(player.Opponent);
+            opponent!.SwitchRight();
+            await Clients.Client(opponent.Me).SendAsync("Notify", $"Opponent {x} {y}");
+
+            if (player.Game.Winner != "progress")
             {
                 if(player.Game.Winner == "tie")
                 {
@@ -76,18 +82,8 @@ namespace BoardGamesOnline.Server.Hubs
 
                 info.Remove(player.Opponent);
                 info.Remove(Context.ConnectionId);
-            }
-
-            var opponent = info.Get(player.Opponent);
-            if(opponent == null || player == null)
-            {
                 return;
             }
-
-            await Clients.Caller.SendAsync("Notify", "Ok");
-            player.SwitchRight();
-            opponent.SwitchRight();
-            await Clients.Client(opponent.Me).SendAsync("Notify", "It is your turn");
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
