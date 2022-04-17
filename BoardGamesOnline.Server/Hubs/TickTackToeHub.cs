@@ -78,10 +78,15 @@ namespace BoardGamesOnline.Server.Hubs
                 info.Remove(Context.ConnectionId);
             }
 
+            var opponent = info.Get(player.Opponent);
+            if(opponent == null || player == null)
+            {
+                return;
+            }
+
             await Clients.Caller.SendAsync("Notify", "Ok");
             player.SwitchRight();
-            var opponent = info.Get(player.Opponent);
-            opponent!.SwitchRight();
+            opponent.SwitchRight();
             await Clients.Client(opponent.Me).SendAsync("Notify", "It is your turn");
         }
 

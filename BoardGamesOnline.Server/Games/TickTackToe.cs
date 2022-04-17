@@ -32,14 +32,14 @@
                     }
                 }
 
-                if (field[0, 0] == field[0, 1] && field[0, 1] == field[0, 2]) return field[0, 0];
-                else if (field[1, 0] == field[1, 1] && field[1, 1] == field[1, 2]) return field[1, 0];
-                else if (field[2, 0] == field[2, 1] && field[2, 1] == field[2, 2]) return field[2, 0];
-                else if (field[0, 0] == field[1, 0] && field[1, 0] == field[2, 0]) return field[0, 0];
-                else if (field[0, 1] == field[1, 1] && field[1, 1] == field[2, 1]) return field[0, 1];
-                else if (field[0, 2] == field[1, 2] && field[1, 2] == field[2, 2]) return field[0, 2];
-                else if (field[0, 0] == field[1, 1] && field[1, 1] == field[2, 2]) return field[0, 0];
-                else if (field[0, 2] == field[1, 1] && field[1, 1] == field[2, 0]) return field[0, 2];
+                if (field[0, 0] == field[0, 1] && field[0, 1] == field[0, 2] && !string.IsNullOrWhiteSpace(field[0, 2])) return field[0, 0];
+                else if (field[1, 0] == field[1, 1] && field[1, 1] == field[1, 2] && !string.IsNullOrWhiteSpace(field[1, 2])) return field[1, 0];
+                else if (field[2, 0] == field[2, 1] && field[2, 1] == field[2, 2] && !string.IsNullOrWhiteSpace(field[2, 2])) return field[2, 0];
+                else if (field[0, 0] == field[1, 0] && field[1, 0] == field[2, 0] && !string.IsNullOrWhiteSpace(field[2, 0])) return field[0, 0];
+                else if (field[0, 1] == field[1, 1] && field[1, 1] == field[2, 1] && !string.IsNullOrWhiteSpace(field[2, 1])) return field[0, 1];
+                else if (field[0, 2] == field[1, 2] && field[1, 2] == field[2, 2] && !string.IsNullOrWhiteSpace(field[2, 2])) return field[0, 2];
+                else if (field[0, 0] == field[1, 1] && field[1, 1] == field[2, 2] && !string.IsNullOrWhiteSpace(field[2, 2])) return field[0, 0];
+                else if (field[0, 2] == field[1, 1] && field[1, 1] == field[2, 0] && !string.IsNullOrWhiteSpace(field[2, 0])) return field[0, 2];
                 else if (empty) return "progress";
                 else return "tie";
             }
