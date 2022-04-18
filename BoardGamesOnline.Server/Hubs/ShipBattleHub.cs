@@ -26,8 +26,8 @@ namespace BoardGamesOnline.Server.Hubs
                 var opponent = new ShipBattlePlayer(opponentId, Context.ConnectionId, opponentGame, !right);
                 info.Add(player);
                 info.Add(opponent);
-                await Clients.Client(player.Me).SendAsync("Notify", $"game started;{player.Right}");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"game started;{opponent.Right}");
+                await Clients.Client(player.Me).SendAsync("Notify", $"started;{player.Right}");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"started;{opponent.Right}");
             }
             else
             {
@@ -94,17 +94,17 @@ namespace BoardGamesOnline.Server.Hubs
             if(shoot == 3)
             {
                 await Clients.Caller.SendAsync("Notify", "killed");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"killed {x} {y}");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"killed;{x};{y}");
             }
             if(shoot == 1)
             {
                 await Clients.Caller.SendAsync("Notify", "injured");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"injured {x} {y}");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"injured;{x};{y}");
             }
             if(shoot == -1)
             {
                 await Clients.Caller.SendAsync("Notify", "missed");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"missed {x} {y}");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"missed;{x};{y}");
             }
 
             if(player.Game.IsDead || opponent.Game.IsDead)
