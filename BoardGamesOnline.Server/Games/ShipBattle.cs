@@ -163,7 +163,7 @@
 
         private int FixR(int r)
         {
-            if (r > 10) return 10;
+            if (r > 9) return 9;
             if (r < 0) return 0;
             return r;
         }
