@@ -63,7 +63,7 @@ namespace BoardGamesOnline.Server.Hubs
             await base.OnConnectedAsync();
         }
 
-        public async Task SetShips(int[,] ships)
+        public async Task SetShips(int[][] jaggedShips)
         {
             if (environment.IsDevelopment())
             {
@@ -82,6 +82,27 @@ namespace BoardGamesOnline.Server.Hubs
             {
                 await Clients.Caller.SendAsync("Notify", "error;2");
                 return;
+            }
+
+            if (jaggedShips.Length != 10)
+            {
+                await Clients.Caller.SendAsync("Notify", "error;3");
+                return;
+            }
+
+            var ships = new int[10, 4];
+
+            for(int i = 0; i < jaggedShips.Length; ++i)
+            {
+                if (jaggedShips[i].Length != 4)
+                {
+                    await Clients.Caller.SendAsync("Notify", "error;3");
+                    return;
+                }
+                for(int j = 0; j < jaggedShips[i].Length; ++j)
+                {
+                    ships[i, j] = jaggedShips[i][j];
+                }
             }
 
             bool isSuccessful = player.Game.SetShips(ships);
