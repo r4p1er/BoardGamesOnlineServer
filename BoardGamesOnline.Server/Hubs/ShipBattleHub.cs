@@ -120,6 +120,7 @@ namespace BoardGamesOnline.Server.Hubs
 
             if (opponent.Game!.IsReady)
             {
+                await Clients.Clients(player.Me, opponent.Me).SendAsync("Notify", "fight");
                 if ((bool)player.Right!) player.StartTimeout(32);
                 else opponent.StartTimeout(32);
             }
@@ -172,11 +173,6 @@ namespace BoardGamesOnline.Server.Hubs
                 await Clients.Caller.SendAsync("Notify", "injured");
                 await Clients.Client(opponent.Me).SendAsync("Notify", $"injured;{x};{y}");
             }
-            if(shoot == -1)
-            {
-                await Clients.Caller.SendAsync("Notify", "missed");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"missed;{x};{y}");
-            }
 
             if(player.Game.IsDead || opponent.Game.IsDead)
             {
@@ -190,12 +186,20 @@ namespace BoardGamesOnline.Server.Hubs
                     await Clients.Client(opponent.Me).SendAsync("lose");
                     opponent.StartTimeout(0);
                 }
+                return;
             }
 
-            player.SwitchRight();
-            opponent.SwitchRight();
+            if (shoot == -1)
+            {
+                await Clients.Caller.SendAsync("Notify", "missed");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"missed;{x};{y}");
+                player.SwitchRight();
+                opponent.SwitchRight();
+                opponent.StartTimeout(32);
+                return;
+            }
 
-            opponent.StartTimeout(32);
+            player.StartTimeout(32);
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
