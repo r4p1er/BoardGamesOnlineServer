@@ -35,6 +35,13 @@
             }, token);
         }
 
+        public void CancelAbortion()
+        {
+            cancellationTokenSource.Cancel();
+            cancellationTokenSource.Dispose();
+            cancellationTokenSource = new CancellationTokenSource();
+        }
+
         public void SwitchTurn()
         {
             turn = !turn;
@@ -75,7 +82,5 @@
                 if (turn == null) turn = value;
             }
         }
-
-        public CancellationTokenSource AbortToken { get { return cancellationTokenSource; } }
     }
 }
