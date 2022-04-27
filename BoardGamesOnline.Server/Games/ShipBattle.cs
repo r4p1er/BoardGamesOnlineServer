@@ -21,7 +21,7 @@
 
         public int Shoot(int x, int y)
         {
-            if (x < 0 || x > 10 || y < 0 || y > 10 || field[x, y] == 1 || field[x, y] == -1) return -2;
+            if (x < 0 || x > 9 || y < 0 || y > 9 || field[x, y] == 1 || field[x, y] == -1) return -2;
 
             field[x, y] -= 1;
 
@@ -81,7 +81,7 @@
 
                 if (right)
                 {
-                    for (int i = y + 1; i <= 10 && field[x, i] != 0 && field[x, i] != -1; ++i)
+                    for (int i = y + 1; i <= 9 && field[x, i] != 0 && field[x, i] != -1; ++i)
                     {
                         if (field[x, i] != 1) isDeadRight = false;
                     }
@@ -97,7 +97,7 @@
 
                 if (down)
                 {
-                    for (int i = x + 1; i <= 10 && field[i, y] != 0 && field[i, y] != -1; ++i)
+                    for (int i = x + 1; i <= 9 && field[i, y] != 0 && field[i, y] != -1; ++i)
                     {
                         if (field[i, y] != 1) isDeadDown = false;
                     }
@@ -163,7 +163,7 @@
 
         private int FixR(int r)
         {
-            if (r > 10) return 10;
+            if (r > 9) return 9;
             if (r < 0) return 0;
             return r;
         }
