@@ -108,7 +108,7 @@ namespace BoardGamesOnline.Server.Hubs
                 return;
             }
 
-            player.AbortToken.Cancel();
+            player.CancelAbortion();
             await Clients.Caller.SendAsync("Notify", "placed");
 
             if (opponent!.Game.IsReady)
@@ -161,7 +161,7 @@ namespace BoardGamesOnline.Server.Hubs
                 return;
             }
 
-            player.AbortToken.Cancel();
+            player.CancelAbortion();
 
             if(shoot == 3)
             {
@@ -223,8 +223,6 @@ namespace BoardGamesOnline.Server.Hubs
                 {
                     await Clients.Client(opponent.Me).SendAsync("Notify", "win");
                 }
-                opponent.Dispose();
-                info.Remove(opponent.Me);
                 opponent.AbortAfterSeconds(3);
             }
             await base.OnDisconnectedAsync(exception);
