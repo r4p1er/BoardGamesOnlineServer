@@ -35,11 +35,15 @@ namespace BoardGamesOnline.Server.Hubs
                 {
                     bool turn = new Random().Next(1, 3) == 1;
 
+                    var game = new TickTackToe();
+
                     player.Opponent = opponent.Me;
                     player.Turn = turn;
+                    player.Game = game;
 
                     opponent.Opponent = player.Me;
                     opponent.Turn = !turn;
+                    opponent.Game = game;
 
                     await Clients.Client(player.Me).SendAsync("Notify", $"selected;{player.Turn}");
                     await Clients.Client(opponent.Me).SendAsync("Notify", $"selected;{opponent.Turn}");
