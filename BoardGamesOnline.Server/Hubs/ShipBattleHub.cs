@@ -33,23 +33,19 @@ namespace BoardGamesOnline.Server.Hubs
 
                 if(opponent != null)
                 {
-                    var opponentGame = new ShipBattle();
-                    var playerGame = new ShipBattle();
-                    bool right = new Random().Next(1, 3) == 1;
+                    bool turn = new Random().Next(1, 3) == 1;
 
                     player.Opponent = opponent.Me;
-                    player.Right = right;
-                    player.Game = playerGame;
+                    player.Turn = turn;
 
                     opponent.Opponent = player.Me;
-                    opponent.Right = !right;
-                    opponent.Game = opponentGame;
+                    opponent.Turn = !turn;
 
-                    await Clients.Client(player.Me).SendAsync("Notify", $"started;{player.Right}");
-                    await Clients.Client(opponent.Me).SendAsync("Notify", $"started;{opponent.Right}");
+                    await Clients.Client(player.Me).SendAsync("Notify", $"selected;{player.Turn}");
+                    await Clients.Client(opponent.Me).SendAsync("Notify", $"selected;{opponent.Turn}");
 
-                    player.StartTimeout(92);
-                    opponent.StartTimeout(92);
+                    player.AbortAfterSeconds(91);
+                    opponent.AbortAfterSeconds(94);
                 }
                 else
                 {
@@ -62,7 +58,7 @@ namespace BoardGamesOnline.Server.Hubs
             }
             await base.OnConnectedAsync();
         }
-
+        
         public async Task SetShips(int[][] jaggedShips)
         {
             if (environment.IsDevelopment())
@@ -72,10 +68,10 @@ namespace BoardGamesOnline.Server.Hubs
 
             var player = info.Get(Context.ConnectionId);
 
-            if (player!.Game == null)
+            var opponent = info.Get(player!.Opponent ?? "");
+            if (opponent == null)
             {
                 await Clients.Caller.SendAsync("Notify", "error;7");
-                return;
             }
 
             if (player.Game.IsReady)
@@ -112,17 +108,14 @@ namespace BoardGamesOnline.Server.Hubs
                 return;
             }
 
-            player.TimeoutToken.Cancel();
-            await Clients.Caller.SendAsync("Notify", "success");
+            player.AbortToken.Cancel();
+            await Clients.Caller.SendAsync("Notify", "placed");
 
-            var opponent = info.Get(player.Opponent);
-            if (opponent == null) return;
-
-            if (opponent.Game!.IsReady)
+            if (opponent!.Game.IsReady)
             {
                 await Clients.Clients(player.Me, opponent.Me).SendAsync("Notify", "fight");
-                if ((bool)player.Right!) player.StartTimeout(32);
-                else opponent.StartTimeout(32);
+                if ((bool)player.Turn!) player.AbortAfterSeconds(32);
+                else opponent.AbortAfterSeconds(32);
             }
         }
 
@@ -134,58 +127,67 @@ namespace BoardGamesOnline.Server.Hubs
             }
 
             var player = info.Get(Context.ConnectionId);
-            var opponent = info.Get(player!.Opponent);
 
+            var opponent = info.Get(player!.Opponent ?? "");
             if (opponent == null)
             {
                 await Clients.Caller.SendAsync("Notify", "error;7");
                 return;
             }
 
-            if (!player.Game!.IsReady || !opponent.Game!.IsReady)
+            if (player.Game.IsDead || opponent.Game.IsDead)
+            {
+                await Clients.Caller.SendAsync("Notify", "error;8");
+                return;
+            }
+
+            if (!player.Game.IsReady || !opponent.Game.IsReady)
             {
                 await Clients.Clients(player.Me, opponent.Me).SendAsync("Notify", "error;4");
                 return;
             }
 
-            if (!(bool)player.Right!)
+            if (!(bool)player.Turn!)
             {
                 await Clients.Caller.SendAsync("Notify", "error;5");
                 return;
             }
 
             int shoot = opponent.Game.Shoot(x, y);
+
             if(shoot == -2)
             {
                 await Clients.Caller.SendAsync("Notify", "error;6");
                 return;
             }
 
-            player.TimeoutToken.Cancel();
+            player.AbortToken.Cancel();
 
             if(shoot == 3)
             {
-                await Clients.Caller.SendAsync("Notify", "killed");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"killed;{x};{y}");
+                await Clients.Caller.SendAsync("Notify", "destroyed");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"destroyed;{x};{y}");
             }
+
             if(shoot == 1)
             {
-                await Clients.Caller.SendAsync("Notify", "injured");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"injured;{x};{y}");
+                await Clients.Caller.SendAsync("Notify", "damaged");
+                await Clients.Client(opponent.Me).SendAsync("Notify", $"damaged;{x};{y}");
             }
 
             if(player.Game.IsDead || opponent.Game.IsDead)
             {
                 if (player.Game.IsDead)
                 {
-                    await Clients.Caller.SendAsync("lose");
-                    player.StartTimeout(0);
+                    await Clients.Caller.SendAsync("Notify", "lose");
+                    await Clients.Client(opponent.Me).SendAsync("Notify", "win");
                 }
                 else
                 {
-                    await Clients.Client(opponent.Me).SendAsync("lose");
-                    opponent.StartTimeout(0);
+                    await Clients.Caller.SendAsync("Notify", "win");
+                    await Clients.Client(opponent.Me).SendAsync("Notify", "lose");
                 }
+                player.Abort();
                 return;
             }
 
@@ -193,13 +195,13 @@ namespace BoardGamesOnline.Server.Hubs
             {
                 await Clients.Caller.SendAsync("Notify", "missed");
                 await Clients.Client(opponent.Me).SendAsync("Notify", $"missed;{x};{y}");
-                player.SwitchRight();
-                opponent.SwitchRight();
-                opponent.StartTimeout(32);
+                player.SwitchTurn();
+                opponent.SwitchTurn();
+                opponent.AbortAfterSeconds(32);
                 return;
             }
 
-            player.StartTimeout(32);
+            player.AbortAfterSeconds(32);
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
@@ -212,12 +214,18 @@ namespace BoardGamesOnline.Server.Hubs
             var player = info.Get(Context.ConnectionId);
             player!.Dispose();
             info.Remove(Context.ConnectionId);
-            if (player.Opponent != string.Empty)
+
+            var opponent = info.Get(player.Opponent ?? "");
+
+            if (opponent != null)
             {
-                await Clients.Client(player.Opponent).SendAsync("Notify", "win");
-                var opponent = info.Get(player.Opponent);
-                opponent!.Opponent = string.Empty;
-                opponent.StartTimeout(0);
+                if (!player.Game.IsReady || (!player.Game.IsDead && !opponent.Game.IsDead))
+                {
+                    await Clients.Client(opponent.Me).SendAsync("Notify", "win");
+                }
+                opponent.Dispose();
+                info.Remove(opponent.Me);
+                opponent.AbortAfterSeconds(3);
             }
             await base.OnDisconnectedAsync(exception);
         }

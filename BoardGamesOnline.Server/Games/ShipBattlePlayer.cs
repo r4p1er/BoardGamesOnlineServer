@@ -3,38 +3,41 @@
     public class ShipBattlePlayer : IDisposable
     {
         private string me;
-        private string opponent;
-        private ShipBattle? game;
-        private bool? right;
+        private string? opponent;
+        private ShipBattle game;
+        private bool? turn;
         private CancellationTokenSource cancellationTokenSource;
         private Action abort;
 
         public ShipBattlePlayer(string me, Action abort)
         {
             this.me = me;
-            this.opponent = string.Empty;
-            this.game = null;
-            this.right = null;
+            this.game = new ShipBattle();
             this.abort = abort;
             this.cancellationTokenSource = new CancellationTokenSource();
         }
 
-        public void StartTimeout(int seconds)
+        public void Abort()
+        {
+            abort();
+        }
+
+        public void AbortAfterSeconds(int seconds)
         {
             var token = cancellationTokenSource.Token;
             Task.Run(async () =>
-                {
-                    bool cancelled = false;
-                    token.Register(() => cancelled = true);
-                    await Task.Delay(seconds * 1000);
-                    if (cancelled) return;
-                    abort();
-                }, token);
+            {
+                bool cancelled = false;
+                token.Register(() => cancelled = true);
+                await Task.Delay(1000 * seconds);
+                if (cancelled) return;
+                Abort();
+            }, token);
         }
 
-        public void SwitchRight()
+        public void SwitchTurn()
         {
-            right = !right;
+            turn = !turn;
         }
 
         public void Dispose()
@@ -43,7 +46,7 @@
         }
 
         public string Me { get { return me; } }
-        public string Opponent
+        public string? Opponent
         {
             get
             {
@@ -51,32 +54,28 @@
             }
             set
             {
-                opponent = value;
+                if (opponent == null) opponent = value;
             }
         }
-        public ShipBattle? Game
+        public ShipBattle Game
         {
             get
             {
                 return game;
             }
-            set
-            {
-                if(game == null) game = value;
-            }
         }
-        public bool? Right
+        public bool? Turn
         {
             get
             {
-                return right;
+                return turn;
             }
             set
             {
-                if(right == null) right = value;
+                if (turn == null) turn = value;
             }
         }
 
-        public CancellationTokenSource TimeoutToken { get { return cancellationTokenSource; } }
+        public CancellationTokenSource AbortToken { get { return cancellationTokenSource; } }
     }
 }
