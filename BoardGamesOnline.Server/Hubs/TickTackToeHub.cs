@@ -7,26 +7,50 @@ namespace BoardGamesOnline.Server.Hubs
     {
         private readonly TickTackToeQueue queue;
         private readonly TickTackToeInfo info;
+        private readonly IWebHostEnvironment environment;
 
-        public TickTackToeHub(TickTackToeQueue queue, TickTackToeInfo info)
+        public TickTackToeHub(TickTackToeQueue queue, TickTackToeInfo info, IWebHostEnvironment environment)
         {
             this.queue = queue;
             this.info = info;
+            this.environment = environment;
         }
 
         public override async Task OnConnectedAsync()
         {
-            if(queue.Count != 0)
+            if (environment.IsDevelopment())
+            {
+                Console.WriteLine($"{Context.ConnectionId} has connected");
+            }
+
+            var player = new TickTackToePlayer(Context.ConnectionId, Context.Abort);
+            info.Add(player);
+
+            if (queue.Count != 0)
             {
                 string opponentId = queue.Item;
-                var game = new TickTackToe();
-                bool right = (new Random().Next(1, 3) == 1 ? true : false);
-                var player = new TickTackToePlayer(Context.ConnectionId, opponentId, game, right);
-                var opponent = new TickTackToePlayer(opponentId, Context.ConnectionId, game, !right);
-                info.Add(player);
-                info.Add(opponent);
-                await Clients.Client(player.Me).SendAsync("Notify", $"game started;{player.Right}");
-                await Clients.Client(opponent.Me).SendAsync("Notify", $"game started;{opponent.Right}");
+                var opponent = info.Get(opponentId);
+
+                if(opponent != null)
+                {
+                    bool turn = new Random().Next(1, 3) == 1;
+
+                    player.Opponent = opponent.Me;
+                    player.Turn = turn;
+
+                    opponent.Opponent = player.Me;
+                    opponent.Turn = !turn;
+
+                    await Clients.Client(player.Me).SendAsync("Notify", $"selected;{player.Turn}");
+                    await Clients.Client(opponent.Me).SendAsync("Notify", $"selected;{opponent.Turn}");
+
+                    if (turn) player.AbortAfterSeconds(32);
+                    else opponent.AbortAfterSeconds(32);
+                }
+                else
+                {
+                    queue.Item = Context.ConnectionId;
+                }
             }
             else
             {
@@ -37,63 +61,82 @@ namespace BoardGamesOnline.Server.Hubs
 
         public async Task Move(int x, int y)
         {
+            if (environment.IsDevelopment())
+            {
+                Console.WriteLine($"{Context.ConnectionId} is at Move method");
+            }
+
             var player = info.Get(Context.ConnectionId);
-            if (player == null)
+
+            var opponent = info.Get(player!.Opponent ?? "");
+            if (opponent == null)
             {
-                await Clients.Caller.SendAsync("Notify", "There is not such a player");
+                await Clients.Caller.SendAsync("Notify", "error;3");
+            }
+
+            if(!(bool)player.Turn!)
+            {
+                await Clients.Caller.SendAsync("Notify", "error;2");
                 return;
             }
 
-            if(player.Right == false)
+            var isSuccessful = player.Game!.Move(player.Me, x, y);
+            if(!isSuccessful)
             {
-                await Clients.Caller.SendAsync("Notify", "It is not your turn");
+                await Clients.Caller.SendAsync("Notify", "error;1");
                 return;
             }
 
-            var isSuccessful = player.Game.Move(player.Me, x, y);
-            if(isSuccessful == false)
-            {
-                await Clients.Caller.SendAsync("Notify", "Bad move");
-                return;
-            }
+            player.CancelAbortion();
+            await Clients.Caller.SendAsync("Notify", "ok");
+            await Clients.Client(opponent!.Me).SendAsync("Notify", $"opponent;{x};{y}");
 
-            await Clients.Caller.SendAsync("Notify", "Ok");
-            player.SwitchRight();
-            var opponent = info.Get(player.Opponent);
-            opponent!.SwitchRight();
-            await Clients.Client(opponent.Me).SendAsync("Notify", $"Opponent {x} {y}");
+            player.SwitchTurn();
+            opponent.SwitchTurn();
 
             if (player.Game.Winner != "progress")
             {
                 if(player.Game.Winner == "tie")
                 {
-                    await Clients.Clients(player.Me, player.Opponent).SendAsync("Notify", "Tie");
+                    await Clients.Clients(player.Me, opponent.Me).SendAsync("Notify", "tie");
                 }
                 else if(player.Game.Winner == player.Me)
                 {
-                    await Clients.Caller.SendAsync("Notify", "Win");
-                    await Clients.Client(player.Opponent).SendAsync("Notify", "Lose");
+                    await Clients.Caller.SendAsync("Notify", "win");
+                    await Clients.Client(opponent.Me).SendAsync("Notify", "lose");
                 }
                 else
                 {
-                    await Clients.Caller.SendAsync("Notify", "Lose");
-                    await Clients.Client(player.Opponent).SendAsync("Notify", "Win");
+                    await Clients.Caller.SendAsync("Notify", "lose");
+                    await Clients.Client(opponent.Me).SendAsync("Notify", "win");
                 }
-
-                info.Remove(player.Opponent);
-                info.Remove(Context.ConnectionId);
+                player.Abort();
                 return;
             }
+
+            opponent.AbortAfterSeconds(32);
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            var player = info.Get(Context.ConnectionId);
-            if(player != null)
+            if (environment.IsDevelopment())
             {
-                await Clients.Client(player.Opponent).SendAsync("Notify", "Win");
-                info.Remove(player.Opponent);
-                info.Remove(Context.ConnectionId);
+                Console.WriteLine($"{Context.ConnectionId} has disconnected");
+            }
+
+            var player = info.Get(Context.ConnectionId);
+            player!.Dispose();
+            info.Remove(Context.ConnectionId);
+
+            var opponent = info.Get(player.Opponent ?? "");
+
+            if (opponent != null)
+            {
+                if (player.Game!.Winner == "progress")
+                {
+                    await Clients.Client(opponent.Me).SendAsync("Notify", "win");
+                }
+                opponent.AbortAfterSeconds(3);
             }
             await base.OnDisconnectedAsync(exception);
         }
