@@ -9,6 +9,8 @@ builder.Services.AddSingleton<ShipBattleQueue>();
 builder.Services.AddSingleton<ShipBattleInfo>();
 var app = builder.Build();
 
+app.MapGet("/", () => "Runs");
+
 app.MapHub<TickTackToeHub>("/ticktacktoe");
 app.MapHub<ShipBattleHub>("/shipbattle");
 
